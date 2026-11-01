@@ -27,8 +27,7 @@ struct Conversion {
 
 /// The engine's replay of a Moho one: its setup from the header (Moho's
 /// random stream and pathing), its stream as the engine's commands, each
-/// entity named by its Moho id (generation 0) for the sim to resolve as it
-/// runs the command.
+/// entity named by its Moho id alone (EntityId::moho_only).
 Conversion convert(const MohoReplay& moho);
 
 /// The retail scenario file of a map ("/maps/X/X.scmap" -> "/maps/X/X_scenario.lua").
