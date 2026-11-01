@@ -812,10 +812,11 @@ public:
         rng_trace_from_ = from;
         rng_trace_to_ = to;
     }
-    void set_entity_trace(std::ostream* out, u32 from, u32 to) {
+    void set_entity_trace(std::ostream* out, u32 from, u32 to, u32 step = 1) {
         entity_trace_ = out;
         entity_trace_from_ = from;
         entity_trace_to_ = to;
+        entity_trace_step_ = step > 0 ? step : 1;
     }
     /// Write each ground unit's steering decisions to `out`, a line each
     /// ("STEER t=<tick> <blueprint> <event>"): the waypoints its navigator sets
@@ -1278,6 +1279,7 @@ private:
     static void trace_rng_draw(void* ctx, u64 value);
     u32 entity_trace_from_ = 0;
     u32 entity_trace_to_ = 0;
+    u32 entity_trace_step_ = 1;
     void write_entity_trace() const;
     std::unique_ptr<BoneCache> bone_cache_;
     std::unique_ptr<AnimCache> anim_cache_;
