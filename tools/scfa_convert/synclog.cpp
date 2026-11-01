@@ -107,8 +107,8 @@ std::optional<SynclogBeat> read_synclog_beat(std::istream& in) {
         }
         if (starts_with(line, "  0x") && text.size() == 10) {
             if (const auto id = number(text.substr(2), 16)) {
-                out.entities.push_back(EntityState{.id = *id});
-                entity = &out.entities.back();
+                entity = &out.entities.emplace_back();
+                entity->id = *id;
             }
             continue;
         }
