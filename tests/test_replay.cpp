@@ -22,6 +22,8 @@ extern "C" {
 }
 
 #include <memory>
+#include <sstream>
+#include <string>
 #include <vector>
 
 using osc::sim::CommandType;
@@ -123,6 +125,25 @@ TEST_CASE("Replay deserialize rejects bad data", "[replay]") {
     std::vector<osc::u8> truncated = {'O', 'S', 'C', 'R', 1};    // header cut off
     CHECK_FALSE(Replay::deserialize(truncated, out));
     CHECK(out.commands.empty());
+}
+
+TEST_CASE("The entity trace writes every step-th tick of its range", "[replay]") {
+    LuaGuard g;
+    SimState sim(g.L, nullptr);
+    setup(sim);
+    std::ostringstream trace;
+    sim.set_entity_trace(&trace, 0, 200, 50);
+    for (int i = 0; i < 120; ++i) {
+        sim.tick();
+    }
+    std::vector<std::string> ticks;
+    std::istringstream lines(trace.str());
+    for (std::string line; std::getline(lines, line);) {
+        if (line.rfind("T ", 0) == 0) {
+            ticks.push_back(line.substr(0, line.find(" rng")));
+        }
+    }
+    CHECK(ticks == std::vector<std::string>{"T 50", "T 100"});
 }
 
 TEST_CASE("Recording keeps what the sim applies, and a checksum each tick", "[replay]") {
