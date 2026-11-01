@@ -242,9 +242,8 @@ TEST_CASE("A Moho order becomes the engine's command in its beat", "[scfa]") {
     CHECK(order.command.has_facing);
     CHECK_FALSE(order.command.form_move);
     CHECK(order.command.command_id == ((1u << 24) | 0x12u));
-    CHECK(order.unit_ids ==
-          std::vector<osc::sim::EntityId>{osc::sim::EntityId::of(0x00100005, 0),
-                                          osc::sim::EntityId::of(0x00100006, 0)});
+    CHECK(order.unit_ids == std::vector<osc::sim::EntityId>{osc::sim::EntityId::of(0x00100005, 0),
+                                                            osc::sim::EntityId::of(0x00100006, 0)});
 
     const auto& setting = c.replay.commands[1];
     REQUIRE(setting.callback);
