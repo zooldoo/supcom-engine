@@ -195,6 +195,7 @@ add_executable(osc_tests
     test_command_scheduler.cpp
     test_no_rush.cpp
     test_replay.cpp
+    test_scfa_convert.cpp
     test_front_end_data.cpp
     test_projectile_defaults.cpp
     test_blueprint_defaults.cpp
@@ -244,6 +245,7 @@ target_link_libraries(osc_tests PRIVATE
     osc::lua
     osc::blueprints
     osc::sim
+    osc::scfa
     osc::renderer
     osc::video
     osc::app # the window's modes (test_window_mode)

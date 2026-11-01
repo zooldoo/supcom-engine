@@ -1119,6 +1119,9 @@ private:
     /// at the start of the tick as Moho's army OnTick does.
     void update_influence_maps();
     void dispatch_due_commands();
+    /// An entity a command names by its Moho id alone (generation 0, as a
+    /// converted Moho replay names them): the one alive with that id now.
+    void resolve_moho_ids(ScheduledCommand& sc) const;
     /// The beat's tick, Moho's AdvanceBeat from ++mCurTick to AdvanceCoords.
     void advance_tick();
     void end_beat(bool ticked);
