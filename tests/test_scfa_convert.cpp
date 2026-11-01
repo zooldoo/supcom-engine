@@ -1,9 +1,12 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "scfa_convert/convert.hpp"
+#include "scfa_convert/synclog.hpp"
 #include "sim/sim_callback_queue.hpp"
 
+#include <array>
 #include <cstring>
+#include <sstream>
 #include <string>
 #include <variant>
 #include <vector>
@@ -270,4 +273,70 @@ TEST_CASE("A malformed Moho replay is refused", "[scfa]") {
     Bytes unknown = header();
     unknown.message(static_cast<MohoOp>(40), Bytes{});
     CHECK_FALSE(osc::scfa::read_moho_replay(unknown.b, error));
+}
+
+TEST_CASE("A /synclog beat's dirty entities are read, its quaternion w first", "[scfa]") {
+    std::istringstream log("********** beat 50 **********\n"
+                           "  tick number 50\n"
+                           "0x00000000's nav tick.\n"
+                           "  0x00000000->DriveToNextWaypoint()\n"
+                           "Dirty Entities\n"
+                           "  0x00100000\n"
+                           "      0421211b40b4514f990447d60099f906\n"
+                           "    health: 10000.0 0x461c4000\n"
+                           "      65e7722fb7b97b711a67b78d3ca2fdb8\n"
+                           "    bp:url0001\n"
+                           "      81e3836cbe4c5a50a99e778660843dc5\n"
+                           "    pos: <  24.56,  61.99, 139.27> [0x41c47d46 0x4277f800 0x430b43e3]\n"
+                           "    rot: < 0.9919, 0.0000,-0.1271, 0.0000> [0x3f7decba 0x00000000 "
+                           "0xbe021f63 0x00000000]\n"
+                           "      33fcef6aec6719c418fa6223db0f0d4b\n"
+                           "   vel: <   0.00,   0.00,   0.00> [0x00000000 0x00000000 0x00000000]\n"
+                           "beat 50 final checksum: 9699ac8be38d987db2df4c8575f07887\n");
+    const auto beat = osc::scfa::read_synclog_beat(log);
+    REQUIRE(beat);
+    CHECK(beat->beat == 50);
+    CHECK(beat->dumped);
+    REQUIRE(beat->entities.size() == 1);
+    const auto& e = beat->entities[0];
+    CHECK(e.id == 0x00100000u);
+    CHECK(e.blueprint == "url0001");
+    CHECK(e.health == 0x461c4000u);
+    CHECK(e.pos == std::array<osc::u32, 3>{0x41c47d46u, 0x4277f800u, 0x430b43e3u});
+    CHECK(e.rot == std::array<osc::u32, 4>{0x00000000u, 0xbe021f63u, 0x00000000u, 0x3f7decbau});
+}
+
+TEST_CASE("The engine's trace is compared with retail's dump, field by field", "[scfa]") {
+    std::istringstream trace(
+        "T 50 rng 0123456789abcdef\n"
+        "1048576 u url0001 a1 d0 p 41c47d46 4277f800 430b43e4 q 00000000 be021f63 00000000 "
+        "3f7decba h 461c4000 L1 s0 f0 c0 k0 b3f800000\n"
+        "T 51 rng 0123456789abcdef\n");
+    const auto engine = osc::scfa::read_entity_trace(trace);
+    REQUIRE(engine.size() == 2);
+    REQUIRE(engine.at(50).size() == 1);
+
+    osc::scfa::EntityState acu;
+    acu.id = 0x00100000;
+    acu.blueprint = "URL0001";
+    acu.health = 0x461c4000;
+    acu.pos = {0x41c47d46, 0x4277f800, 0x430b43e3};
+    acu.rot = {0x00000000, 0xbe021f63, 0x00000000, 0x3f7decba};
+    osc::scfa::EntityState gone = acu;
+    gone.id = 0x00100001;
+    osc::scfa::BeatStates retail;
+    retail[50][acu.id] = acu;
+    retail[50][gone.id] = gone;
+    retail[100][acu.id] = acu;
+
+    const auto beats = osc::scfa::compare(retail, engine, 10);
+    REQUIRE(beats.size() == 1);
+    CHECK(beats[0].beat == 50);
+    CHECK(beats[0].entities == 2);
+    CHECK(beats[0].missing == 1);
+    CHECK(beats[0].differing == 1);
+    REQUIRE(beats[0].differences.size() == 2);
+    CHECK(beats[0].differences[0].field == "pos.z");
+    CHECK(beats[0].differences[0].ulps == 1);
+    CHECK(beats[0].differences[1].field == "missing");
 }

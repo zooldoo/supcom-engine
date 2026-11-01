@@ -57,11 +57,12 @@ void attach_sound(osc::lua::LuaState& sim_lua, osc::sim::SimState& sim,
 /// here (see SimState::set_checksum_trace); null when not asked for.
 std::ofstream* g_checksum_trace = nullptr;
 
-/// --entity-trace <file> [--entity-trace-ticks <from>-<to>]: every entity's
+/// --entity-trace <file> [--entity-trace-ticks <from>-<to>[/<step>]]: every entity's
 /// synced state at those ticks (see SimState::set_entity_trace).
 std::ofstream* g_entity_trace = nullptr;
 osc::u32 g_entity_trace_from = 0;
 osc::u32 g_entity_trace_to = 0xFFFFFFFFu;
+osc::u32 g_entity_trace_step = 1;
 
 /// --rng-trace <file> [--rng-trace-ticks <from>-<to>]: every random draw and
 /// the script that made it (see SimState::set_rng_trace).
