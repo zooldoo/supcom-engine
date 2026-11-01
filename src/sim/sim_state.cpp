@@ -2053,10 +2053,44 @@ void SimState::terminate_command_source(u32 source) {
     }
 }
 
+void SimState::resolve_moho_ids(ScheduledCommand& sc) const {
+    const auto live = [&](EntityId& id) {
+        if (id && id.generation() == 0) {
+            id = entity_registry_.live_id(id.moho());
+        }
+    };
+    for (EntityId& id : sc.unit_ids) {
+        live(id);
+    }
+    live(sc.command.target_id);
+    for (EntityId& id : sc.command.unload_ids) {
+        live(id);
+    }
+    if (!sc.callback) {
+        return;
+    }
+    for (EntityId& id : sc.callback->unit_ids) {
+        live(id);
+    }
+    for (const char* key : {"Target", "Entity"}) {
+        const auto it = sc.callback->args.find(key);
+        if (it == sc.callback->args.end()) {
+            continue;
+        }
+        if (const auto* number = std::get_if<f64>(&it->second);
+            number && *number >= 1 && *number <= 9007199254740991.0) {
+            EntityId id(static_cast<u64>(*number));
+            live(id);
+            it->second = static_cast<f64>(id.key());
+        }
+    }
+}
+
 void SimState::dispatch_due_commands() {
     PROFILE_ZONE("Sim::commands");
     command_scheduler_.dispatch_due(beat_count_, [&](const ScheduledCommand& scheduled) {
         ScheduledCommand sc = scheduled;
+        resolve_moho_ids(sc);
         // Its source runs it, as Moho's sim plays a source's part of the
         // command stream (the engine's own commands have none).
         current_command_source_ = sc.source;
