@@ -60,6 +60,7 @@ class AnimCache;
 class BoneCache;
 class PathTables;
 class SimState;
+class SyncLog;
 class Unit;
 
 /// Victory condition (game mode) governing when an army is eliminated.
@@ -836,6 +837,8 @@ public:
         entity_trace_to_ = to;
         entity_trace_step_ = step > 0 ? step : 1;
     }
+    /// Write Moho's /synclog of its checksum beats to `log` (--synclog). Null stops it.
+    void set_synclog(SyncLog* log) { synclog_ = log; }
     /// Write each ground unit's steering decisions to `out`, a line each
     /// ("STEER t=<tick> <blueprint> <event>"): the waypoints its navigator sets
     /// and the meetings it resolves and how, as the original's /synclog does
@@ -1295,6 +1298,7 @@ private:
     std::vector<std::string> print_lines_;
     std::ostream* checksum_trace_ = nullptr;
     std::ostream* entity_trace_ = nullptr;
+    SyncLog* synclog_ = nullptr;
     std::ostream* steer_log_ = nullptr;
     std::ostream* rng_trace_ = nullptr;
     u32 rng_trace_from_ = 0;
