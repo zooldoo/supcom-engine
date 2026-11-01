@@ -61,10 +61,10 @@ constexpr std::string_view kValueOptions[] = {
     "--play-rate", "--play-until-tick", "--bench", "--bench-scenario", "--render-bench",
     "--render-scene", "--render-frames", "--render-warmup", "--binding-coverage",
     "--binding-baseline", "--binding-moho-user", "--checksum-trace", "--entity-trace",
-    "--entity-trace-ticks", "--rng-trace", "--rng-trace-ticks", "--gpgnet", "--lan-game-join",
-    "--mp-port", "--lan-game-save", "--lan-game-resume", "--lan-game-quit-at",
-    "--lan-game-self-destruct-at", "--render-dump", "--count-marks", "--mp-join", "--mp-frames",
-    "--mp-drop-at", "--mp-slow"
+    "--entity-trace-ticks", "--synclog", "--synclog-period", "--rng-trace", "--rng-trace-ticks",
+    "--gpgnet", "--lan-game-join", "--mp-port", "--lan-game-save", "--lan-game-resume",
+    "--lan-game-quit-at", "--lan-game-self-destruct-at", "--render-dump", "--count-marks",
+    "--mp-join", "--mp-frames", "--mp-drop-at", "--mp-slow"
 };
 // clang-format on
 
@@ -161,6 +161,9 @@ void print_usage() {
               << "  --entity-trace <f>    Write every entity's synced state each tick\n"
               << "  --entity-trace-ticks <from>-<to>[/<step>]  ...only for these ticks (every\n"
               << "                     step-th of them)\n"
+              << "  --synclog <dir>       Write Moho's /synclog of its checksum beats, a\n"
+              << "                     file a beat\n"
+              << "  --synclog-period <n>  ...every n-th beat (default 50)\n"
               << "  --rng-trace <f>       Write each random draw and the script that made it\n"
               << "  --rng-trace-ticks <from>-<to>  ...only for these ticks\n"
               << "  --record <file>    Record the game as a replay, written when the run ends\n"
