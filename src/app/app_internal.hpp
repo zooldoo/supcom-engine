@@ -29,6 +29,7 @@
 #include "sim/replay.hpp"
 #include "sim/saved_game.hpp"
 #include "sim/sim_state.hpp"
+#include "sim/synclog.hpp"
 #include "sim/thread_manager.hpp"
 #include "sim/world_snapshot.hpp"
 #include "ui/console.hpp"
@@ -217,6 +218,7 @@ extern std::ofstream* g_entity_trace;
 extern u32 g_entity_trace_from;
 extern u32 g_entity_trace_to;
 extern u32 g_entity_trace_step;
+extern sim::SyncLog* g_synclog;
 extern std::ofstream* g_rng_trace;
 extern std::ofstream* g_steer_log;
 extern u32 g_rng_trace_from;
@@ -519,6 +521,7 @@ private:
     audio::SoundManager sound;
     std::ofstream checksum_trace;
     std::ofstream entity_trace;
+    std::unique_ptr<sim::SyncLog> synclog;
     std::ofstream rng_trace;
     std::ofstream steer_log;
 
