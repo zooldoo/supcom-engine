@@ -13,7 +13,8 @@
 
 int main(int argc, char* argv[]) {
     if (argc < 3) {
-        std::fprintf(stderr, "usage: %s <in.SCFAReplay> <out.oscreplay> [--sums <file>]\n", argv[0]);
+        std::fprintf(stderr, "usage: %s <in.SCFAReplay> <out.oscreplay> [--sums <file>]\n",
+                     argv[0]);
         return 2;
     }
     std::string sums_path;

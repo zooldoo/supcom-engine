@@ -2091,7 +2091,7 @@ bool finite_place(const UnitCommand& command) {
 
 void SimState::resolve_moho_ids(ScheduledCommand& sc) const {
     const auto live = [&](EntityId& id) {
-        if (id && id.generation() == 0) {
+        if (id.is_moho_only()) {
             id = entity_registry_.live_id(id.moho());
         }
     };
