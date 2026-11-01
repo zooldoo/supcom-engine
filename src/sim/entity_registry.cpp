@@ -38,7 +38,7 @@ EntityId EntityRegistry::reserve_id(const Entity& e) {
             generations.resize(index + 1);
         }
         u32& generation = generations[index];
-        generation = generation % EntityId::kMaxGeneration + 1;
+        generation = generation % (EntityId::kMaxGeneration - 1) + 1;
         return EntityId::of(moho, generation);
     }
 }
