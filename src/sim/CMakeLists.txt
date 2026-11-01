@@ -61,6 +61,7 @@ add_library(osc_sim STATIC
     lobby_net.cpp
     lan_discovery.cpp
     sim_state.cpp
+    synclog.cpp
     terrain_types.cpp
     sim_snapshot.cpp
     state_io.cpp

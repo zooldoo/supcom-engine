@@ -4,6 +4,7 @@
 #include "sim/lua_profile.hpp"
 #include "blueprints/blueprint_store.hpp"
 #include "sim/steering.hpp"
+#include "sim/synclog.hpp"
 #include "sim/blueprint_categories.hpp"
 #include "sim/collision_beam.hpp"
 #include "sim/decal.hpp"
@@ -2171,6 +2172,9 @@ void SimState::tick() {
     PROFILE_ZONE("Sim::tick");
     if (L_ && Profiler::instance().enabled()) lua_profile::attach(L_);
     ++beat_count_;
+    if (synclog_) {
+        synclog_->begin_beat(*this);
+    }
     if (rng_trace_) {
         const bool on = tick_count_ + 1 >= rng_trace_from_ && tick_count_ + 1 <= rng_trace_to_;
         sim_random_.set_draw_hook(on ? &SimState::trace_rng_draw : nullptr, this);
@@ -2342,6 +2346,9 @@ void SimState::end_beat(bool ticked) {
             recorded_replay_.final_beat = beat_count_;
             recorded_replay_.checksums.push_back(parts.total());
         }
+    }
+    if (synclog_) {
+        synclog_->end_beat(*this);
     }
     if (entity_trace_ && ticked && tick_count_ >= entity_trace_from_ &&
         tick_count_ <= entity_trace_to_ &&

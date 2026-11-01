@@ -442,7 +442,7 @@ void StateIO::save(StateWriter& w, const SimState& sim) {
     w.u32v(sim.intel_pass_);
     // sound_manager_, beat_observer_, checksum_trace_, entity_trace_,
     // rng_trace_, rng_trace_from_, rng_trace_to_, rng_trace_draws_,
-    // entity_trace_from_, entity_trace_to_, entity_trace_step_, steer_log_, faf_exe_,
+    // entity_trace_from_, entity_trace_to_, entity_trace_step_, synclog_, steer_log_, faf_exe_,
     // run_opponent_ai_: the host's;
     // nav_personal_pos_max_distance_: no save holds FAF's exe global, which
     // its OnPostLoad sets again;

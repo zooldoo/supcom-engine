@@ -199,6 +199,7 @@ add_executable(osc_tests
     test_no_rush.cpp
     test_replay.cpp
     test_scfa_convert.cpp
+    test_synclog.cpp
     test_front_end_data.cpp
     test_projectile_defaults.cpp
     test_blueprint_defaults.cpp
