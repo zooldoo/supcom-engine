@@ -2122,7 +2122,8 @@ void SimState::end_beat(bool ticked) {
         }
     }
     if (entity_trace_ && ticked && tick_count_ >= entity_trace_from_ &&
-        tick_count_ <= entity_trace_to_) {
+        tick_count_ <= entity_trace_to_ &&
+        (tick_count_ - entity_trace_from_) % entity_trace_step_ == 0) {
         write_entity_trace();
     }
     // Death flashes and camera shakes are shown from the beat's capture;
