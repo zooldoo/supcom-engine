@@ -22,6 +22,11 @@ public:
         return EntityId((u64{moho} << kGenerationBits) | generation);
     }
 
+    /// An entity named by its Moho id alone, as a converted Moho replay names one: the one
+    /// alive with that id when the sim reads it. No pool hands out this generation.
+    static constexpr EntityId moho_only(u32 moho) { return of(moho, kMaxGeneration); }
+    constexpr bool is_moho_only() const { return generation() == kMaxGeneration; }
+
     constexpr u64 key() const { return key_; }
     constexpr u32 moho() const { return static_cast<u32>(key_ >> kGenerationBits); }
     constexpr u32 generation() const { return static_cast<u32>(key_) & kMaxGeneration; }

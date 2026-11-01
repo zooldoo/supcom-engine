@@ -242,15 +242,15 @@ TEST_CASE("A Moho order becomes the engine's command in its beat", "[scfa]") {
     CHECK(order.command.has_facing);
     CHECK_FALSE(order.command.form_move);
     CHECK(order.command.command_id == ((1u << 24) | 0x12u));
-    CHECK(order.unit_ids == std::vector<osc::sim::EntityId>{osc::sim::EntityId::of(0x00100005, 0),
-                                                            osc::sim::EntityId::of(0x00100006, 0)});
+    const auto first = osc::sim::EntityId::moho_only(0x00100005);
+    const auto second = osc::sim::EntityId::moho_only(0x00100006);
+    CHECK(order.unit_ids == std::vector<osc::sim::EntityId>{first, second});
 
     const auto& setting = c.replay.commands[1];
     REQUIRE(setting.callback);
     CHECK(setting.callback->func_name == osc::sim::kProcessInfoCallback);
     CHECK(std::get<std::string>(setting.callback->args.at("Action")) == "SetPaused");
-    CHECK(setting.callback->unit_ids ==
-          std::vector<osc::sim::EntityId>{osc::sim::EntityId::of(0x00100005, 0)});
+    CHECK(setting.callback->unit_ids == std::vector<osc::sim::EntityId>{first});
 }
 
 TEST_CASE("A malformed Moho replay is refused", "[scfa]") {

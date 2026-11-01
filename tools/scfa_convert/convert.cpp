@@ -145,7 +145,7 @@ const char* op_name(MohoOp op) {
 }
 
 EntityId moho_entity(u32 id) {
-    return EntityId::of(id, 0);
+    return EntityId::moho_only(id);
 }
 
 f64 moho_entity_arg(u32 id) {
@@ -290,7 +290,9 @@ private:
         return it->second;
     }
 
-    u32 engine_command_id(u32 source, u32 moho) const { return ((source + 1) << 24) | (moho & 0xFFFFFFu); }
+    u32 engine_command_id(u32 source, u32 moho) const {
+        return ((source + 1) << 24) | (moho & 0xFFFFFFu);
+    }
 
     void callback(const MohoMessage& m, u32 source, sim::SimCallbackEntry entry) {
         sim::ScheduledCommand c;
@@ -365,7 +367,9 @@ private:
             return;
         }
         case MohoOp::IssueCommand:
-        case MohoOp::IssueFactoryCommand: issue(m, *source, r, m.op == MohoOp::IssueFactoryCommand); return;
+        case MohoOp::IssueFactoryCommand:
+            issue(m, *source, r, m.op == MohoOp::IssueFactoryCommand);
+            return;
         case MohoOp::SetCommandTarget: {
             const u32 moho_id = r.u32v();
             sim::SimCallbackEntry e;
@@ -531,9 +535,8 @@ private:
         if (formation >= 0 && c.unit_ids.size() > 1 &&
             (cmd.type == CommandType::Move || cmd.type == CommandType::Attack ||
              cmd.type == CommandType::Patrol || cmd.type == CommandType::AggressiveMove)) {
-            cmd.formation = kRetailFormations[static_cast<size_t>(formation) < kRetailFormations.size()
-                                                  ? static_cast<size_t>(formation)
-                                                  : 0];
+            const size_t index = static_cast<size_t>(formation);
+            cmd.formation = kRetailFormations[index < kRetailFormations.size() ? index : 0];
             cmd.has_facing = true;
             cmd.facing = sim::quat_yaw(orientation);
             cmd.form_move = kind->form_move;
