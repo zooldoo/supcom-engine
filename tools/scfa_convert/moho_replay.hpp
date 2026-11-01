@@ -6,10 +6,11 @@
 #include <span>
 #include <string>
 #include <string_view>
-#include <utility>
 #include <vector>
 
 namespace osc::scfa {
+
+struct ScrPair;
 
 /// A value of Moho's SCR byte stream (SCR_ToByteStream), its numbers floats.
 struct ScrValue {
@@ -18,13 +19,18 @@ struct ScrValue {
     f32 number = 0;
     bool boolean = false;
     std::string string;
-    std::vector<std::pair<ScrValue, ScrValue>> table;
+    std::vector<ScrPair> table;
 
     const ScrValue* field(std::string_view key) const;
     std::string text(std::string_view key) const;
     std::optional<f32> number_at(std::string_view key) const;
     /// A boolean, or the string "true".
     bool flag(std::string_view key) const;
+};
+
+struct ScrPair {
+    ScrValue key;
+    ScrValue value;
 };
 
 /// Moho's command stream operations (ECmdStreamOp).
