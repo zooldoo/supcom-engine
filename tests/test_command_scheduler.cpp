@@ -139,6 +139,18 @@ TEST_CASE("Scheduled order lands in the unit queue on its exec beat", "[cmd][sim
     CHECK(u->command_queue().front().target_pos.x == 500.0f);
 }
 
+TEST_CASE("An order naming a unit by its Moho id alone reaches the unit alive with it",
+          "[cmd][sim]") {
+    LuaGuard g;
+    SimState sim(g.L, nullptr);
+    const osc::sim::EntityId id = spawn_mover(sim, 0, 5.0f);
+    sim.schedule_command(0, {osc::sim::EntityId::of(id.moho(), 0)}, move_to(500.0f, 0.0f), true);
+    sim.tick();
+    const auto* u = static_cast<const Unit*>(sim.entity_registry().find(id));
+    REQUIRE(u->command_queue().size() == 1);
+    CHECK(u->command_queue().front().target_pos.x == 500.0f);
+}
+
 TEST_CASE("command_delay defers execution", "[cmd][sim]") {
     LuaGuard g;
     SimState sim(g.L, nullptr);

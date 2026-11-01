@@ -125,18 +125,6 @@ TEST_CASE("Replay deserialize rejects bad data", "[replay]") {
     CHECK(out.commands.empty());
 }
 
-TEST_CASE("A command naming a unit by its Moho id alone reaches the unit alive with it", "[replay]") {
-    LuaGuard g;
-    SimState sim(g.L, nullptr);
-    auto ids = setup(sim);
-    sim.schedule_command(0, {EntityId::of(ids[0].moho(), 0)}, move_to(50.0f, 0.0f), true);
-    sim.tick();
-    const auto* unit = static_cast<const Unit*>(sim.entity_registry().find(ids[0]));
-    REQUIRE(unit);
-    REQUIRE_FALSE(unit->command_queue().empty());
-    CHECK(unit->command_queue().front().target_pos.x == 50.0f);
-}
-
 TEST_CASE("Recording keeps what the sim applies, and a checksum each tick", "[replay]") {
     LuaGuard g;
     SimState sim(g.L, nullptr);

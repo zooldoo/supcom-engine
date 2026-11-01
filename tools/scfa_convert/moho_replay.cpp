@@ -1,6 +1,7 @@
 #include "scfa_convert/moho_replay.hpp"
 
 #include <cstring>
+#include <utility>
 
 namespace osc::scfa {
 
@@ -130,7 +131,7 @@ std::optional<ScrValue> MohoReader::scr_value(int depth) {
             if (!value) {
                 return std::nullopt;
             }
-            v.table.emplace_back(std::move(*key), std::move(*value));
+            v.table.push_back(ScrPair{std::move(*key), std::move(*value)});
         }
         break;
     default: return std::nullopt;
