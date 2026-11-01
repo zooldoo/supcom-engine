@@ -104,6 +104,12 @@ std::optional<int> App::boot_engine() {
             g_entity_trace_step = static_cast<osc::u32>(std::stoul(range.substr(slash + 1)));
         }
     }
+    if (const auto dir = parse_string_arg(argc, argv, "--synclog", ""); !dir.empty()) {
+        const auto period = parse_string_arg(argc, argv, "--synclog-period", "50");
+        synclog =
+            std::make_unique<osc::sim::SyncLog>(dir, static_cast<osc::u32>(std::stoul(period)));
+        g_synclog = synclog.get();
+    }
     if (const auto trace = parse_string_arg(argc, argv, "--rng-trace", ""); !trace.empty()) {
         rng_trace.open(trace, std::ios::trunc);
         if (!rng_trace) {
@@ -168,6 +174,7 @@ std::optional<int> App::boot_game() {
         sim_state->set_checksum_trace(g_checksum_trace);
         sim_state->set_entity_trace(g_entity_trace, g_entity_trace_from, g_entity_trace_to,
                                     g_entity_trace_step);
+        sim_state->set_synclog(g_synclog);
         sim_state->set_rng_trace(g_rng_trace, g_rng_trace_from, g_rng_trace_to);
         sim_state->set_steer_log(g_steer_log);
         sim_state->set_moho_pathing(game_setup.moho_pathing);

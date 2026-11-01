@@ -64,6 +64,10 @@ osc::u32 g_entity_trace_from = 0;
 osc::u32 g_entity_trace_to = 0xFFFFFFFFu;
 osc::u32 g_entity_trace_step = 1;
 
+/// --synclog <dir> [--synclog-period <n>]: Moho's /synclog of every n-th beat (default 50,
+/// sim_ChecksumPeriod's), a file a beat (see sim::SyncLog).
+osc::sim::SyncLog* g_synclog = nullptr;
+
 /// --rng-trace <file> [--rng-trace-ticks <from>-<to>]: every random draw and
 /// the script that made it (see SimState::set_rng_trace).
 std::ofstream* g_rng_trace = nullptr;
