@@ -36,6 +36,7 @@ add_subdirectory(src/renderer)
 add_subdirectory(src/lua)
 add_subdirectory(src/blueprints)
 add_subdirectory(src/app)
+add_subdirectory(tools/scfa_convert)
 
 # The game. Its test modes are in the integration runner, osc_integration
 # (tests/integration/runner).
