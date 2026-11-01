@@ -131,6 +131,7 @@ TEST_CASE("The entity trace writes every step-th tick of its range", "[replay]")
     LuaGuard g;
     SimState sim(g.L, nullptr);
     setup(sim);
+    sim.set_victory_condition("sandbox");
     std::ostringstream trace;
     sim.set_entity_trace(&trace, 0, 200, 50);
     for (int i = 0; i < 120; ++i) {
