@@ -100,6 +100,9 @@ std::optional<int> App::boot_engine() {
             g_entity_trace_from = static_cast<osc::u32>(std::stoul(range.substr(0, dash)));
             g_entity_trace_to = static_cast<osc::u32>(std::stoul(range.substr(dash + 1)));
         }
+        if (const auto slash = range.find('/'); slash != std::string::npos) {
+            g_entity_trace_step = static_cast<osc::u32>(std::stoul(range.substr(slash + 1)));
+        }
     }
     if (const auto trace = parse_string_arg(argc, argv, "--rng-trace", ""); !trace.empty()) {
         rng_trace.open(trace, std::ios::trunc);
@@ -163,7 +166,8 @@ std::optional<int> App::boot_game() {
         sim_state = std::make_unique<osc::sim::SimState>(sim_lua_state->raw(), &store);
         sim_state->set_seed(game_setup.seed);
         sim_state->set_checksum_trace(g_checksum_trace);
-        sim_state->set_entity_trace(g_entity_trace, g_entity_trace_from, g_entity_trace_to);
+        sim_state->set_entity_trace(g_entity_trace, g_entity_trace_from, g_entity_trace_to,
+                                    g_entity_trace_step);
         sim_state->set_rng_trace(g_rng_trace, g_rng_trace_from, g_rng_trace_to);
         sim_state->set_steer_log(g_steer_log);
         sim_state->set_moho_pathing(game_setup.moho_pathing);

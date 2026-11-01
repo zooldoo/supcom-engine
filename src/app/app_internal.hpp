@@ -216,6 +216,7 @@ extern std::ofstream* g_checksum_trace;
 extern std::ofstream* g_entity_trace;
 extern u32 g_entity_trace_from;
 extern u32 g_entity_trace_to;
+extern u32 g_entity_trace_step;
 extern std::ofstream* g_rng_trace;
 extern std::ofstream* g_steer_log;
 extern u32 g_rng_trace_from;
