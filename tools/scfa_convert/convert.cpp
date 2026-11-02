@@ -246,6 +246,7 @@ private:
         for (size_t i = 0; i < moho_.armies.size(); ++i) {
             const ScrValue& o = moho_.armies[i].options;
             if (o.flag("Civilian")) {
+                s.civilians = true;
                 continue;
             }
             sim::ArmySlotConfig slot;
