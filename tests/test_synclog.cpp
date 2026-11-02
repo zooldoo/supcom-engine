@@ -72,8 +72,8 @@ EntityId add_prop(SimState& sim, osc::f32 x) {
 
 } // namespace
 
-TEST_CASE("The synclog writes every period-th beat: its units, and what else was made or moved "
-          "on it",
+TEST_CASE("The synclog writes the beat of every period-th tick: its units, and what else was made "
+          "or moved on it",
           "[synclog]") {
     LuaGuard g;
     SimState sim(g.L, nullptr);
@@ -89,7 +89,7 @@ TEST_CASE("The synclog writes every period-th beat: its units, and what else was
     TempDir dir;
     SyncLog log(dir.path, 10);
     sim.set_synclog(&log);
-    for (int i = 0; i < 20; ++i) {
+    for (int i = 0; i < 19; ++i) {
         sim.tick();
     }
     sim.entity_registry().find(moved)->set_position({25.0f, 0.0f, 20.0f});
@@ -101,16 +101,11 @@ TEST_CASE("The synclog writes every period-th beat: its units, and what else was
         files.push_back(f.path().filename().string());
     }
     std::sort(files.begin(), files.end());
-    CHECK(files == std::vector<std::string>{"beat00000.log", "beat00010.log", "beat00020.log"});
-
-    const std::string first = read(dir.path / "beat00000.log");
-    CHECK(first.rfind("********** beat 0 **********\n", 0) == 0);
-    CHECK(first.find("Armies\n  \"Player\" [ARMY_1]\n") != std::string::npos);
-    CHECK(lists(first, unit));
-    CHECK(lists(first, still));
-    CHECK(lists(first, moved));
+    CHECK(files == std::vector<std::string>{"beat00010.log", "beat00020.log"});
 
     const std::string tenth = read(dir.path / "beat00010.log");
+    CHECK(tenth.rfind("********** beat 10 **********\n  tick number 10\n", 0) == 0);
+    CHECK(tenth.find("Armies\n  \"Player\" [ARMY_1]\n") != std::string::npos);
     CHECK(lists(tenth, unit));
     CHECK_FALSE(lists(tenth, still));
     CHECK_FALSE(lists(tenth, moved));
@@ -123,4 +118,28 @@ TEST_CASE("The synclog writes every period-th beat: its units, and what else was
     CHECK(
         twentieth.find("   vel: <   5.00,   0.00,   0.00> [0x40a00000 0x00000000 0x00000000]\n") !=
         std::string::npos);
+}
+
+TEST_CASE("The synclog writes an attached entity on every beat it writes, moved or not",
+          "[synclog]") {
+    LuaGuard g;
+    SimState sim(g.L, nullptr);
+    sim.set_victory_condition("sandbox");
+    sim.add_army("ARMY_1", "Player");
+    const EntityId anchor = add_prop(sim, 10.0f);
+    const EntityId attached = add_prop(sim, 10.0f);
+    sim.entity_registry().find(attached)->set_parent(anchor, -1);
+
+    TempDir dir;
+    SyncLog log(dir.path, 10);
+    sim.set_synclog(&log);
+    for (int i = 0; i < 20; ++i) {
+        sim.tick();
+    }
+
+    for (const char* beat : {"beat00010.log", "beat00020.log"}) {
+        const std::string text = read(dir.path / beat);
+        CHECK(lists(text, attached));
+        CHECK_FALSE(lists(text, anchor));
+    }
 }
