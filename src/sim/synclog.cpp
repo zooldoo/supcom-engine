@@ -51,13 +51,14 @@ SyncLog::SyncLog(std::filesystem::path dir, u32 period)
     std::filesystem::create_directories(dir_);
 }
 
+// Moho's beat 0 is the setup's (no AdvanceBeat); beat N is the one whose tick is N.
 bool SyncLog::logged(const SimState& sim) const {
-    return sim.beat_count() > 0 && (sim.beat_count() - 1) % period_ == 0;
+    return sim.beat_count() % period_ == 0;
 }
 
 void SyncLog::begin_beat(const SimState& sim) {
     poses_.clear();
-    if (!logged(sim) || sim.beat_count() == 1) {
+    if (!logged(sim)) {
         return;
     }
     sim.entity_registry().for_each([&](const Entity& e) {
@@ -87,7 +88,7 @@ void SyncLog::end_beat(const SimState& sim) {
     if (!logged(sim)) {
         return;
     }
-    const u32 beat = sim.beat_count() - 1;
+    const u32 beat = sim.beat_count();
     std::string out = fmt::format("********** beat {} **********\n  tick number {}\nArmies\n", beat,
                                   sim.tick_count());
     for (size_t i = 0; i < sim.army_count(); ++i) {
@@ -107,12 +108,11 @@ void SyncLog::end_beat(const SimState& sim) {
         out += "    mMaxStorage[0]=\n    mMaxStorage[1]=\n";
     }
     out += "Dirty Entities\n";
-    const bool all = beat == 0;
     sim.entity_registry().for_each([&](const Entity& e) {
         if (e.destroyed()) {
             return;
         }
-        if (!all && !e.is_unit()) {
+        if (!e.is_unit() && !e.parent_entity_id()) {
             const auto it = poses_.find(e.entity_id());
             if (it != poses_.end() && same(it->second.position, e.position()) &&
                 same(it->second.orientation, e.orientation()) &&
