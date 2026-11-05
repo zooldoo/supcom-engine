@@ -14,8 +14,8 @@ class SimState;
 
 /// Moho's /synclog of its checksum beats (Sim::UpdateChecksum, every sim_ChecksumPeriod-th
 /// beat): each army's economy totals and the entities it hashes, in its format, a file a beat.
-/// A unit is hashed every time, and an attached entity (its TaskTick sets its transform each
-/// tick); any other entity when made or moved on that beat.
+/// A unit is hashed every time, and an attached entity or collision beam (its TaskTick sets its
+/// transform each tick); any other entity when made or moved on that beat.
 class SyncLog {
 public:
     SyncLog(std::filesystem::path dir, u32 period);

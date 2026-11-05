@@ -143,3 +143,27 @@ TEST_CASE("The synclog writes an attached entity on every beat it writes, moved 
         CHECK_FALSE(lists(text, anchor));
     }
 }
+
+TEST_CASE("The synclog writes a collision beam on every beat it writes, moved or not",
+          "[synclog]") {
+    LuaGuard g;
+    SimState sim(g.L, nullptr);
+    sim.set_victory_condition("sandbox");
+    sim.add_army("ARMY_1", "Player");
+    const EntityId launcher = add_prop(sim, 10.0f);
+    auto b = std::make_unique<osc::sim::Entity>();
+    b->set_position({10.0f, 0.0f, 10.0f});
+    b->set_beam_launcher_id(launcher);
+    const EntityId beam = sim.entity_registry().register_entity(std::move(b));
+
+    TempDir dir;
+    SyncLog log(dir.path, 10);
+    sim.set_synclog(&log);
+    for (int i = 0; i < 20; ++i) {
+        sim.tick();
+    }
+
+    for (const char* beat : {"beat00010.log", "beat00020.log"}) {
+        CHECK(lists(read(dir.path / beat), beam));
+    }
+}
