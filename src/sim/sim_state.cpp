@@ -2290,6 +2290,9 @@ void SimState::advance_tick() {
 }
 
 void SimState::end_beat(bool ticked) {
+    if (synclog_) {
+        synclog_->note_dying(*this);
+    }
     run_deletion_queue();
 
     // VFX: expire timed effects (decals, splats) and garbage collect destroyed ones
