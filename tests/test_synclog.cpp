@@ -167,3 +167,29 @@ TEST_CASE("The synclog writes a collision beam on every beat it writes, moved or
         CHECK(lists(read(dir.path / beat), beam));
     }
 }
+
+TEST_CASE("The synclog writes an entity destroyed on a beat it writes, as it last stood",
+          "[synclog]") {
+    LuaGuard g;
+    SimState sim(g.L, nullptr);
+    sim.set_victory_condition("sandbox");
+    sim.add_army("ARMY_1", "Player");
+    const EntityId early = add_prop(sim, 10.0f);
+    const EntityId late = add_prop(sim, 20.0f);
+
+    TempDir dir;
+    SyncLog log(dir.path, 10);
+    sim.set_synclog(&log);
+    for (int i = 0; i < 8; ++i) {
+        sim.tick();
+    }
+    sim.entity_registry().destroy(*sim.entity_registry().find(early));
+    sim.tick();
+    sim.entity_registry().destroy(*sim.entity_registry().find(late));
+    sim.tick();
+
+    const std::string tenth = read(dir.path / "beat00010.log");
+    CHECK_FALSE(lists(tenth, early));
+    CHECK(lists(tenth, late));
+    CHECK(tenth.find("    pos: <  20.00,   0.00,  20.00>") != std::string::npos);
+}
