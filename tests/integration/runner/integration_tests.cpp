@@ -6581,6 +6581,50 @@ void test_prop(TestContext& ctx) {
         local up_y = 1 - 2 * (q[1] * q[1] + q[3] * q[3])
         if math.abs(up_y) > 0.05 then error('still standing: up.y ' .. up_y) end
     )");
+    // Retail's UnitTeleport01 lowers its GetPosition table 2 below the ground; the decal's
+    // GetPosition refills it, so the second blast goes off at the effect's height.
+    lua_check("Test 14: a warp-in effect goes off beside two trees", R"(
+        local a = GetEntityById(__osc_test_acu_id(1)):GetPosition()
+        local function flat(x, z)
+            local h = GetTerrainHeight(x, z)
+            for dx = -12, 12, 2 do
+                for dz = -12, 12, 2 do
+                    if math.abs(GetTerrainHeight(x + dx, z + dz) - h) > 0.1
+                        or GetSurfaceHeight(x + dx, z + dz) > h + 0.01 then
+                        return false
+                    end
+                end
+            end
+            return true
+        end
+        local x, z
+        for r = 30, 300, 10 do
+            for k = 0, 23 do
+                local cx = math.floor(a[1] + r * math.cos(k * math.pi / 12)) + 0.5
+                local cz = math.floor(a[3] + r * math.sin(k * math.pi / 12)) + 0.5
+                if not x and flat(cx, cz) then
+                    x, z = cx, cz
+                end
+            end
+        end
+        if not x then error('no flat ground within 300 of the commander') end
+        local tree = '/env/evergreen/props/trees/pine06_v1_prop.bp'
+        __osc_warp_near = CreatePropHPR(tree, x + 10.95, GetTerrainHeight(x + 10.95, z), z, 0, 0, 0)
+        __osc_warp_far = CreatePropHPR(tree, x - 11.3, GetTerrainHeight(x - 11.3, z), z, 0, 0, 0)
+        local u = CreateUnitHPR('uel0105', 'ARMY_1', x, GetTerrainHeight(x, z), z, 0, 0, 0)
+        u:CreateProjectile('/effects/entities/UnitTeleport01/UnitTeleport01_proj.bp', 0, 1.35, 0, nil, nil, nil)
+            :SetCollision(false)
+    )");
+    for (int i = 0; i < 40; ++i) ctx.sim.tick();
+    lua_check("Test 14b: its second blast fells the tree 10.95 away, not the one 11.3 away", R"(
+        if not __osc_warp_near:BeenDestroyed() then
+            error('the tree 10.95 away stands, health ' .. __osc_warp_near:GetHealth())
+        end
+        if __osc_warp_far:BeenDestroyed() then error('the tree 11.3 away went too') end
+        if __osc_warp_far:GetHealth() ~= 49 then
+            error('the tree 11.3 away has health ' .. __osc_warp_far:GetHealth() .. ', not the outer ring\'s 49')
+        end
+    )");
     if (osc::test_status::failure_count() - fail == failures_before) {
         pass++;
         spdlog::info("[PASS] Test 12: no prop script errors");
