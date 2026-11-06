@@ -21,6 +21,9 @@ public:
     SyncLog(std::filesystem::path dir, u32 period);
 
     void begin_beat(const SimState& sim);
+    /// Before the deletion queue runs: Moho's Destroy links an entity into the coord list, and it
+    /// is hashed on the beat it goes, as it last stood.
+    void note_dying(const SimState& sim);
     void end_beat(const SimState& sim);
 
 private:
@@ -36,6 +39,7 @@ private:
     std::filesystem::path dir_;
     u32 period_;
     std::unordered_map<EntityId, Pose> poses_;
+    std::string dying_;
 };
 
 } // namespace osc::sim

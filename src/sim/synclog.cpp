@@ -58,12 +58,24 @@ bool SyncLog::logged(const SimState& sim) const {
 
 void SyncLog::begin_beat(const SimState& sim) {
     poses_.clear();
+    dying_.clear();
     if (!logged(sim)) {
         return;
     }
     sim.entity_registry().for_each([&](const Entity& e) {
         if (!e.is_unit() && !e.destroyed()) {
             poses_[e.entity_id()] = {e.position(), e.orientation(), e.health()};
+        }
+    });
+}
+
+void SyncLog::note_dying(const SimState& sim) {
+    if (!logged(sim)) {
+        return;
+    }
+    sim.entity_registry().for_each([&](const Entity& e) {
+        if (e.destroyed()) {
+            dying_ += entity(e, velocity(e));
         }
     });
 }
@@ -122,6 +134,7 @@ void SyncLog::end_beat(const SimState& sim) {
         }
         out += entity(e, velocity(e));
     });
+    out += dying_;
     std::ofstream(dir_ / fmt::format("beat{:05}.log", beat), std::ios::binary) << out;
 }
 
