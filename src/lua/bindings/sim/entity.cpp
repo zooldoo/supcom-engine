@@ -1421,7 +1421,7 @@ static int falldown_Whack(lua_State* L) {
     lua_pop(L, 1);
     auto* sim = get_sim(L);
     sim::Entity* e = sim ? sim->entity_registry().find(id) : nullptr;
-    if (e && !e->destroyed() && e->is_prop()) {
+    if (e && e->is_prop()) {
         static_cast<sim::Prop*>(e)->whack(
             static_cast<f32>(lua_tonumber(L, 2)), static_cast<f32>(lua_tonumber(L, 4)),
             static_cast<f32>(lua_tonumber(L, 5)), lua_toboolean(L, 6) != 0);
