@@ -60,10 +60,11 @@ Quaternion coords_orient(const Vector3& dir) {
                       (m[2][0] - m[0][2]) / t};
 }
 
-namespace {
+Vector3 forward_moho(const Quaternion& q) {
+    return {(q.z * q.x + q.w * q.y) * 2.0f, (q.y * q.z - q.w * q.x) * 2.0f,
+            1.0f - (q.x * q.x + q.y * q.y) * 2.0f};
+}
 
-/// Wm3's Vector3::Normalize: zero and its length 0 at 1e-6 or under, else times the
-/// inverse length.
 f32 wm3_normalize(Vector3& v) {
     const f32 length = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
     if (!(length > 1.0e-6f)) {
@@ -75,8 +76,6 @@ f32 wm3_normalize(Vector3& v) {
     return length;
 }
 
-} // namespace
-
 Quaternion coords_orient_moho(const Vector3& dir) {
     Vector3 f = dir;
     if (wm3_normalize(f) == 0.0f) return Quaternion{0, 0, 0, 1};
@@ -87,6 +86,10 @@ Quaternion coords_orient_moho(const Vector3& dir) {
     }
     const Vector3 u{f.y * r.z - f.z * r.y, f.z * r.x - r.z * f.x, r.y * f.x - f.y * r.x};
     const f32 m[3][3] = {{r.x, r.y, r.z}, {u.x, u.y, u.z}, {f.x, f.y, f.z}};
+    return matrix_to_quat_moho(m);
+}
+
+Quaternion matrix_to_quat_moho(const f32 m[3][3]) {
     const f32 trace = m[0][0] + m[1][1] + m[2][2];
     if (trace > 0.0f) {
         const f32 root = std::sqrt(trace + 1.0f);
@@ -96,7 +99,9 @@ Quaternion coords_orient_moho(const Vector3& dir) {
     }
     constexpr int kNext[3] = {1, 2, 0};
     int d = m[1][1] > m[0][0] ? 1 : 0;
-    if (m[2][2] > m[d][d]) d = 2;
+    if (m[2][2] > m[d][d]) {
+        d = 2;
+    }
     const int b = kNext[d];
     const int c = kNext[b];
     const f32 root = std::sqrt(m[d][d] - (m[b][b] + m[c][c]) + 1.0f);
@@ -106,6 +111,67 @@ Quaternion coords_orient_moho(const Vector3& dir) {
     v[b] = (m[d][b] + m[b][d]) * inv;
     v[c] = (m[d][c] + m[c][d]) * inv;
     return Quaternion{v[0], v[1], v[2], (m[b][c] - m[c][b]) * inv};
+}
+
+Quaternion map_prop_orientation(const f32 rows[3][3]) {
+    const Quaternion q = matrix_to_quat_moho(rows);
+    const f32 length = std::sqrt(q.z * q.z + q.y * q.y + q.x * q.x + q.w * q.w);
+    if (!(length > 1.0e-6f)) {
+        return q;
+    }
+    const f32 inv = 1.0f / length;
+    return Quaternion{q.x * inv, q.y * inv, q.z * inv, q.w * inv};
+}
+
+Quaternion matrix_rows_to_quat_canonical(const f32 m[3][3]) {
+    const f32 trace = m[0][0] + m[1][1] + m[2][2];
+    if (trace > 0.0f) {
+        const f32 root = std::sqrt(trace + 1.0f);
+        const f32 inv = 0.5f / root;
+        return Quaternion{(m[2][1] - m[1][2]) * inv, (m[0][2] - m[2][0]) * inv,
+                          (m[1][0] - m[0][1]) * inv, root * 0.5f};
+    }
+    constexpr int kNext[3] = {1, 2, 0};
+    int d = m[1][1] > m[0][0] ? 1 : 0;
+    if (m[2][2] > m[d][d]) {
+        d = 2;
+    }
+    const int b = kNext[d];
+    const int c = kNext[b];
+    const f32 root = std::sqrt(m[d][d] - m[b][b] - m[c][c] + 1.0f);
+    const f32 inv = 0.5f / root;
+    f32 v[3] = {};
+    v[d] = root * 0.5f;
+    v[b] = (m[d][b] + m[b][d]) * inv;
+    v[c] = (m[d][c] + m[c][d]) * inv;
+    return Quaternion{v[0], v[1], v[2], (m[c][b] - m[b][c]) * inv};
+}
+
+Quaternion hpr_orientation(f32 heading, f32 pitch, f32 roll) {
+    const f32 ch = osc::dmath::cos(heading), sh = osc::dmath::sin(heading);
+    const f32 cp = osc::dmath::cos(pitch), sp = osc::dmath::sin(pitch);
+    const f32 cr = osc::dmath::cos(roll), sr = osc::dmath::sin(roll);
+    const f32 h[3][3] = {{ch, 0.0f, sh}, {0.0f, 1.0f, 0.0f}, {-sh, 0.0f, ch}};
+    const f32 p[3][3] = {{1.0f, 0.0f, 0.0f}, {0.0f, cp, -sp}, {0.0f, sp, cp}};
+    const f32 r[3][3] = {{cr, -sr, 0.0f}, {sr, cr, 0.0f}, {0.0f, 0.0f, 1.0f}};
+    const auto times = [](const f32 a[3][3], const f32 b[3][3], f32 out[3][3]) {
+        for (int i = 0; i < 3; ++i) {
+            for (int j = 0; j < 3; ++j) {
+                out[i][j] = ((a[i][0] * b[0][j] + 0.0f) + a[i][1] * b[1][j]) + a[i][2] * b[2][j];
+            }
+        }
+    };
+    f32 pr[3][3];
+    times(p, r, pr);
+    f32 m[3][3];
+    times(h, pr, m);
+    return matrix_rows_to_quat_canonical(m);
+}
+
+Quaternion quat_from_axis_angle_moho(Vector3 axis_angle) {
+    const f32 half = wm3_normalize(axis_angle) * 0.5f;
+    const f32 s = osc::dmath::sin(half);
+    return Quaternion{axis_angle.x * s, axis_angle.y * s, axis_angle.z * s, osc::dmath::cos(half)};
 }
 
 Quaternion shortest_arc(Vector3 from, Vector3 to) {
