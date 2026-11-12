@@ -124,7 +124,7 @@ void SyncLog::end_beat(const SimState& sim) {
         if (e.destroyed()) {
             return;
         }
-        if (!e.is_unit() && !e.parent_entity_id() && !e.beam_launcher_id()) {
+        if (!e.is_unit() && !e.is_projectile() && !e.parent_entity_id() && !e.beam_launcher_id()) {
             const auto it = poses_.find(e.entity_id());
             if (it != poses_.end() && same(it->second.position, e.position()) &&
                 same(it->second.orientation, e.orientation()) &&
