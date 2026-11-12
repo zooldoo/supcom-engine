@@ -120,22 +120,29 @@ void SyncLog::end_beat(const SimState& sim) {
         out += "    mMaxStorage[0]=\n    mMaxStorage[1]=\n";
     }
     out += "Dirty Entities\n";
+    std::string still;
     sim.entity_registry().for_each([&](const Entity& e) {
         if (e.destroyed()) {
             return;
         }
-        if (!e.is_unit() && !e.is_projectile() && !e.parent_entity_id() && !e.beam_launcher_id()) {
+        if (!e.is_unit() && !e.parent_entity_id() && !e.beam_launcher_id()) {
             const auto it = poses_.find(e.entity_id());
             if (it != poses_.end() && same(it->second.position, e.position()) &&
                 same(it->second.orientation, e.orientation()) &&
                 bits(it->second.health) == bits(e.health())) {
-                return;
+                if (!e.is_projectile()) {
+                    return;
+                }
+                still += fmt::format("0x{:08x}\n", e.entity_id().moho());
             }
         }
         out += entity(e, velocity(e));
     });
     out += dying_;
     std::ofstream(dir_ / fmt::format("beat{:05}.log", beat), std::ios::binary) << out;
+    if (!still.empty()) {
+        std::ofstream(dir_ / fmt::format("beat{:05}.still", beat), std::ios::binary) << still;
+    }
 }
 
 } // namespace osc::sim

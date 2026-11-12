@@ -192,6 +192,33 @@ TEST_CASE("The synclog writes a projectile on every beat it writes, moved or not
     }
 }
 
+TEST_CASE("The synclog lists apart the projectiles that neither moved nor turned on a beat",
+          "[synclog]") {
+    LuaGuard g;
+    SimState sim(g.L, nullptr);
+    sim.set_victory_condition("sandbox");
+    sim.add_army("ARMY_1", "Player");
+    auto p = std::make_unique<osc::sim::Projectile>();
+    p->set_position({10.0f, 0.0f, 10.0f});
+    const EntityId still = sim.entity_registry().register_entity(std::move(p));
+
+    TempDir dir;
+    SyncLog log(dir.path, 10);
+    sim.set_synclog(&log);
+    for (int i = 0; i < 10; ++i) {
+        sim.tick();
+    }
+    CHECK(read(dir.path / "beat00010.still") == fmt::format("0x{:08x}\n", still.moho()));
+
+    for (int i = 0; i < 9; ++i) {
+        sim.tick();
+    }
+    sim.entity_registry().find(still)->set_position({12.0f, 0.0f, 10.0f});
+    sim.tick();
+    CHECK(fs::exists(dir.path / "beat00020.log"));
+    CHECK_FALSE(fs::exists(dir.path / "beat00020.still"));
+}
+
 TEST_CASE("The synclog writes an entity destroyed on a beat it writes, as it last stood",
           "[synclog]") {
     LuaGuard g;
