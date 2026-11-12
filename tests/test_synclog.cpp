@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "sim/manipulator.hpp"
+#include "sim/projectile.hpp"
 #include "sim/prop.hpp"
 #include "sim/sim_state.hpp"
 #include "sim/synclog.hpp"
@@ -165,6 +166,29 @@ TEST_CASE("The synclog writes a collision beam on every beat it writes, moved or
 
     for (const char* beat : {"beat00010.log", "beat00020.log"}) {
         CHECK(lists(read(dir.path / beat), beam));
+    }
+}
+
+TEST_CASE("The synclog writes a projectile on every beat it writes, moved or not", "[synclog]") {
+    LuaGuard g;
+    SimState sim(g.L, nullptr);
+    sim.set_victory_condition("sandbox");
+    sim.add_army("ARMY_1", "Player");
+    auto p = std::make_unique<osc::sim::Projectile>();
+    p->set_position({10.0f, 0.0f, 10.0f});
+    const EntityId still = sim.entity_registry().register_entity(std::move(p));
+
+    TempDir dir;
+    SyncLog log(dir.path, 10);
+    sim.set_synclog(&log);
+    for (int i = 0; i < 20; ++i) {
+        sim.tick();
+    }
+
+    for (const char* beat : {"beat00010.log", "beat00020.log"}) {
+        const std::string text = read(dir.path / beat);
+        CHECK(lists(text, still));
+        CHECK(text.find("    pos: <  10.00,   0.00,  10.00>") != std::string::npos);
     }
 }
 
