@@ -995,7 +995,7 @@ void Unit::set_consumption_active(bool on, ArmyBrain* army) {
 }
 
 void Unit::bank_reclaim(ArmyBrain* army) {
-    const bool banks = !std::exchange(reclaim_held_, false) && army;
+    const bool banks = !std::exchange(reclaim_held_, false) && army && reclaim_wait_ == 0;
     economy_.reclaimed_mass = banks ? economy_.reclaim_mass : 0;
     economy_.reclaimed_energy = banks ? economy_.reclaim_energy : 0;
     if (army && (economy_.reclaimed_mass != 0.0 || economy_.reclaimed_energy != 0.0)) {
@@ -1852,9 +1852,9 @@ bool Unit::progress_build_assist(f64 dt, EntityRegistry& registry, lua_State* L,
 void Unit::begin_reclaim(EntityId target_id, lua_State* L, EntityRegistry& registry) {
     reclaim_target_id_ = target_id;
     auto* target = registry.find(target_id);
-    // Moho's CUnitReclaimTask takes a tick in Starting and one in Processing
-    // before it first reclaims anything but a unit it wears down.
-    reclaim_wait_ = target && !reclaim_wears_down(*target) ? 2 : 0;
+    // Moho's CUnitReclaimTask: a tick in Starting, then Processing until the
+    // arm is on target, before it first reclaims anything but a unit it wears down.
+    reclaim_wait_ = target && !reclaim_wears_down(*target) ? 3 : 0;
     if (target) {
         const Vector3 at = target->position();
         aim_builder_arms(&at, L);
@@ -1870,6 +1870,10 @@ void Unit::stop_reclaiming(lua_State* L, EntityRegistry* registry) {
     }
     economy_.reclaim_mass = 0;
     economy_.reclaim_energy = 0;
+    if (reclaim_target_id_) {
+        work_progress_ = 0.0f;
+    }
+    set_unit_state("Reclaiming", false);
     reclaim_target_id_ = EntityId();
     reclaim_rate_ = 0;
     reclaim_wait_ = 0;
@@ -2007,30 +2011,29 @@ bool Unit::progress_reclaim(f64 dt, EntityRegistry& registry, lua_State* L) {
         return false;
     }
 
-    // Already fully reclaimed (e.g., an assister finished it)
-    if (target->fraction_complete() <= 0.0f) {
-        EntityId tid = reclaim_target_id_;
-        stop_reclaiming(L, &registry);
-        call_on_reclaimed(tid, registry, L);
-        spdlog::info("Reclaim complete: entity #{} finished reclaiming #{}",
-                     entity_id(), tid);
-        return false;
+    if (const f32 was = target->fraction_complete(); was > 0.0f) {
+        const f32 step = reclaim_rate_ * static_cast<f32>(dt);
+        const f32 new_frac = std::max(0.0f, was - step);
+        target->set_fraction_complete(new_frac);
+        work_progress_ = 1.0f - new_frac;
+        if (new_frac > 0.0f) {
+            return true;
+        }
+        // Moho's AwardReclaimedResources banks the share Materialize took.
+        if (step > 0.0f) {
+            const f64 share = static_cast<f64>(was) / static_cast<f64>(step);
+            economy_.reclaim_mass *= share;
+            economy_.reclaim_energy *= share;
+        }
+    } else {
+        economy_.reclaim_mass = 0;
+        economy_.reclaim_energy = 0;
     }
-
-    f32 new_frac = std::max(0.0f,
-        target->fraction_complete() - reclaim_rate_ * static_cast<f32>(dt));
-    target->set_fraction_complete(new_frac);
-
-    if (new_frac <= 0.0f) {
-        EntityId tid = reclaim_target_id_;
-        stop_reclaiming(L, &registry);
-        call_on_reclaimed(tid, registry, L);
-        spdlog::info("Reclaim complete: entity #{} finished reclaiming #{}",
-                     entity_id(), tid);
-        return false;
-    }
-
-    return true; // still reclaiming
+    // The task ends the tick after its target goes (CUnitReclaimTask::TaskTick).
+    call_on_reclaimed(reclaim_target_id_, registry, L);
+    spdlog::info("Reclaim complete: entity #{} finished reclaiming #{}", entity_id(),
+                 reclaim_target_id_);
+    return true;
 }
 
 bool Unit::progress_reclaim_assist(f64 dt, EntityRegistry& registry, lua_State* L) {
@@ -2042,14 +2045,20 @@ bool Unit::progress_reclaim_assist(f64 dt, EntityRegistry& registry, lua_State* 
         return false;
 
     if (reclaim_wait_ > 0) {
-        if (reclaim_wait_ > 1 || reclaim_arm_ready(*target)) {
-            --reclaim_wait_;
+        if (reclaim_wait_ == 2) {
+            if (!reclaim_arm_ready(*target)) {
+                return true;
+            }
+            set_unit_state("Reclaiming", true);
         }
-        return true;
+        if (--reclaim_wait_ > 0) {
+            return true;
+        }
     }
 
     if (reclaim_wears_down(*target)) {
         if (reclaim_arm_ready(*target)) {
+            set_unit_state("Reclaiming", true);
             // Its reclaim task's Starting state, a guard's as anyone's: the
             // unit is its focus each tick it wears it down.
             const EntityId target_id = reclaim_target_id_;
@@ -2074,6 +2083,7 @@ bool Unit::progress_reclaim_assist(f64 dt, EntityRegistry& registry, lua_State* 
     f32 new_frac = std::max(0.0f,
         target->fraction_complete() - reclaim_rate_ * static_cast<f32>(dt));
     target->set_fraction_complete(new_frac);
+    work_progress_ = 1.0f - new_frac;
 
     return new_frac > 0.0f;
 }
