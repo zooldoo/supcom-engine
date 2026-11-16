@@ -61,6 +61,9 @@ int main(int argc, char* argv[]) {
     for (const auto& [what, count] : conversion.skipped) {
         std::printf("  skipped %s: %d\n", what.c_str(), count);
     }
+    for (const auto& mod : conversion.mods) {
+        std::printf("  mod: %s %s\n", mod.location.c_str(), mod.name.c_str());
+    }
     for (const auto& note : conversion.notes) {
         std::printf("  note: %s\n", note.c_str());
     }
