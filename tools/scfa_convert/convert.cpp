@@ -32,6 +32,7 @@ struct OrderKind {
     CommandType type = CommandType::Stop;
     bool form_move = false;
     bool form_attack = false;
+    bool chosen_cargo = false;
 };
 
 /// Moho's EUnitCommandType as the engine's order.
@@ -102,6 +103,7 @@ std::optional<OrderKind> order_kind(u8 moho, std::string& name) {
     case 21: return OrderKind{CommandType::Capture};
     case 22: return OrderKind{CommandType::TransportLoad};
     case 24: return OrderKind{CommandType::TransportUnload};
+    case 25: return OrderKind{CommandType::TransportUnload, false, false, true};
     case 27: return OrderKind{CommandType::Upgrade};
     case 28: return OrderKind{CommandType::Script};
     case 31: return OrderKind{CommandType::DestroySelf};
@@ -239,7 +241,12 @@ private:
             r.victory_condition = options->text("Victory");
         }
         if (!moho_.mods.table.empty()) {
-            out_.notes.push_back("the replay's game mods are not carried over");
+            if (auto bytes = lua_bytes(moho_.mods)) {
+                s.mods = std::move(*bytes);
+            }
+            for (const auto& [key, mod] : moho_.mods.table) {
+                out_.mods.push_back({mod.text("location"), mod.text("name")});
+            }
         }
 
         u32 next_source = 0;
@@ -531,6 +538,9 @@ private:
             return;
         }
         cmd.type = kind->type;
+        if (kind->chosen_cargo) {
+            cmd.unload_ids = c.unit_ids;
+        }
         cmd.factory = factory;
         cmd.form_attack = kind->form_attack;
         if (formation >= 0 && c.unit_ids.size() > 1 &&
