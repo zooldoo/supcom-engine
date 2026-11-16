@@ -2,7 +2,13 @@
 
 #include "scfa_convert/convert.hpp"
 #include "scfa_convert/synclog.hpp"
+#include "sim/lua_bytes.hpp"
 #include "sim/sim_callback_queue.hpp"
+
+extern "C" {
+#include <lauxlib.h>
+#include <lua.h>
+}
 
 #include <array>
 #include <cstring>
@@ -78,17 +84,21 @@ Bytes player(const std::string& army, bool human, float faction, const std::stri
     return p;
 }
 
+Bytes no_mods() {
+    Bytes mods;
+    mods.u8v(4);
+    mods.u8v(5);
+    return mods;
+}
+
 /// A replay of ARMY_1 (AI, rush) and ARMY_7 (the player, source 0) on X1MP_012.
-Bytes header() {
+Bytes header(const Bytes& mods = no_mods()) {
     Bytes h;
     h.cstr("Supreme Commander v1.50.3599");
     h.cstr("\r\n");
     h.raw("Replay v1.9\r\n");
     h.cstr("/maps/X1MP_012/X1MP_012.scmap");
     h.cstr("\r\n\x1a");
-    Bytes mods;
-    mods.u8v(4);
-    mods.u8v(5);
     h.sized(mods);
     Bytes scenario;
     scenario.u8v(4);
@@ -254,6 +264,84 @@ TEST_CASE("A Moho order becomes the engine's command in its beat", "[scfa]") {
     CHECK(setting.callback->func_name == osc::sim::kProcessInfoCallback);
     CHECK(std::get<std::string>(setting.callback->args.at("Action")) == "SetPaused");
     CHECK(setting.callback->unit_ids == std::vector<osc::sim::EntityId>{first});
+}
+
+TEST_CASE("A Moho replay's game mods are the engine's", "[scfa]") {
+    Bytes mods;
+    mods.u8v(4);
+    mods.scr_number(1);
+    mods.u8v(4);
+    mods.scr_string("name");
+    mods.scr_string("Resource Rich");
+    mods.scr_string("location");
+    mods.scr_string("/mods/resourcerich");
+    mods.scr_string("hookdir");
+    mods.scr_string("/hook");
+    mods.u8v(5);
+    mods.u8v(5);
+    const auto moho = read(header(mods));
+    REQUIRE(moho);
+    const auto c = osc::scfa::convert(*moho);
+    REQUIRE(c.mods.size() == 1);
+    CHECK(c.mods[0].location == "/mods/resourcerich");
+    CHECK(c.mods[0].name == "Resource Rich");
+
+    lua_State* L = lua_open();
+    REQUIRE(osc::sim::push_lua_bytes(L, c.replay.setup.mods));
+    REQUIRE(lua_istable(L, -1));
+    lua_rawgeti(L, -1, 1);
+    REQUIRE(lua_istable(L, -1));
+    lua_pushstring(L, "location");
+    lua_rawget(L, -2);
+    CHECK(std::string(lua_tostring(L, -1)) == "/mods/resourcerich");
+    lua_pushstring(L, "hookdir");
+    lua_rawget(L, -3);
+    CHECK(std::string(lua_tostring(L, -1)) == "/hook");
+    lua_close(L);
+}
+
+TEST_CASE("A Moho unload of chosen units unloads those of them aboard", "[scfa]") {
+    Bytes r = header();
+    Bytes source;
+    source.u8v(0);
+    r.message(MohoOp::SetCommandSource, source);
+    r.message(MohoOp::Advance, advance());
+    Bytes issue;
+    issue.u32v(3);
+    issue.u32v(0x00100005);
+    issue.u32v(0x00100006);
+    issue.u32v(0x00100007);
+    issue.u32v(0x04);
+    issue.u32v(0xFFFFFFFF);
+    issue.u8v(25);
+    issue.u32v(0xFFFFFFFF);
+    issue.u8v(2);
+    issue.f32v(100.0f);
+    issue.f32v(20.0f);
+    issue.f32v(300.0f);
+    issue.u8v(0);
+    issue.u32v(0xFFFFFFFF);
+    issue.cstr("");
+    issue.u32v(0);
+    issue.u32v(1);
+    issue.u32v(1);
+    issue.u8v(2);
+    issue.u8v(1);
+    r.message(MohoOp::IssueCommand, issue);
+
+    const auto moho = read(r);
+    REQUIRE(moho);
+    const auto c = osc::scfa::convert(*moho);
+    CHECK(c.skipped.empty());
+    REQUIRE(c.replay.commands.size() == 1);
+    const auto& order = c.replay.commands[0];
+    CHECK(order.command.type == osc::sim::CommandType::TransportUnload);
+    CHECK(order.command.target_pos.x == 100.0f);
+    const std::vector<osc::sim::EntityId> set{osc::sim::EntityId::moho_only(0x00100005),
+                                              osc::sim::EntityId::moho_only(0x00100006),
+                                              osc::sim::EntityId::moho_only(0x00100007)};
+    CHECK(order.unit_ids == set);
+    CHECK(order.command.unload_ids == set);
 }
 
 TEST_CASE("A malformed Moho replay is refused", "[scfa]") {
