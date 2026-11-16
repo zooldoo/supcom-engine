@@ -17,8 +17,14 @@ struct MohoChecksum {
     std::array<u8, 16> digest{};
 };
 
+struct MohoMod {
+    std::string location;
+    std::string name;
+};
+
 struct Conversion {
     sim::Replay replay;
+    std::vector<MohoMod> mods;
     std::vector<MohoChecksum> checksums;
     /// Messages left out, by kind ("op:SetCommandCells", "order:BuildAssist"...).
     std::map<std::string, int> skipped;
