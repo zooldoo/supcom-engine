@@ -90,6 +90,41 @@ Vector3 build_aim_point(lua_State* L, const map::Terrain* terrain, const std::st
     return {site.x, y + size_y * 0.5f + offset_y, site.z};
 }
 
+/// Moho's CheckBuildRestriction (CBuildTaskHelper, 3599 0x5F55A0): a
+/// blueprint with a Physics.BuildRestriction needs its deposit under the
+/// site's footprint cells.
+bool meets_build_restriction(lua_State* L, const SimState* sim, const std::string& bp_id,
+                             const Vector3& site) {
+    if (!L || !sim) {
+        return true;
+    }
+    std::string restriction;
+    const int top = lua_gettop(L);
+    if (blueprints::push_blueprint(L, bp_id)) {
+        lua_pushstring(L, "Physics");
+        lua_rawget(L, -2);
+        if (lua_istable(L, -1)) {
+            lua_pushstring(L, "BuildRestriction");
+            lua_rawget(L, -2);
+            if (lua_type(L, -1) == LUA_TSTRING) {
+                restriction = lua_tostring(L, -1);
+            }
+        }
+    }
+    lua_settop(L, top);
+    ResourceDeposit::Type type = ResourceDeposit::Mass;
+    if (restriction == "RULEUBR_OnHydrocarbonDeposit") {
+        type = ResourceDeposit::Hydrocarbon;
+    } else if (restriction != "RULEUBR_OnMassDeposit") {
+        return true;
+    }
+    const auto [size_x, size_z] = blueprint_footprint_cells(L, bp_id);
+    const auto x0 = static_cast<i32>(std::lrint(site.x - size_x * 0.5f));
+    const auto z0 = static_cast<i32>(std::lrint(site.z - size_z * 0.5f));
+    const DepositRect cells{x0, z0, x0 + static_cast<i32>(size_x), z0 + static_cast<i32>(size_z)};
+    return deposit_in_area(sim->resource_deposits(), type, cells);
+}
+
 /// Ticks a build or repair waits at its army's unit cap, or paused, before
 /// trying again: Moho's tasks return 10 there (a task waits 9 ticks and runs
 /// on the 10th), the brain hearing OnUnitCapLimitReached at each try at the cap.
@@ -461,6 +496,14 @@ bool Unit::tick_orders(f64 dt, SimContext& ctx, f32 econ_eff) {
             // UNITSTATE_BlockCommandQueue.
             if ((parent_entity_id() && is_mobile()) || block_command_queue_) {
                 return true;
+            }
+            // Moho's dispatch makes no build task for what the army may not
+            // build (IAiCommandDispatchImpl::DispatchTask, Unit::CanBuild), and
+            // the order goes; the task doesn't look at the army's rules again.
+            if (command_queue_.front().type == CommandType::BuildMobile &&
+                build_blocked_by_lobby_rules(*this, command_queue_.front(), ctx)) {
+                command_queue_.pop_front();
+                continue;
             }
             // Its scripts may change the queue, or kill the unit: look again.
             begin_order(command_queue_.front(), ctx.L);
@@ -1146,6 +1189,12 @@ OrderStep Unit::order_build_mobile(UnitCommand& cmd, f64 dt, SimContext& ctx, f3
             // the UI comes snapped already; a script's may not.
             const auto [fx, fz] = blueprint_footprint_cells(L, cmd.blueprint_id);
             snap_structure_center(cmd.target_pos.x, cmd.target_pos.z, fx, fz);
+            // Moho's Waiting and Processing ask it again; a deposit, once made, stays.
+            if (!meets_build_restriction(L, ctx.sim, cmd.blueprint_id, cmd.target_pos)) {
+                command_queue_.pop_front();
+                call_lua_method(L, "OnFailedToBuild");
+                return destroyed() || !in_registry() ? OrderStep::Gone : OrderStep::Next;
+            }
             const BuildSiteProp site =
                 find_build_site_prop(L, registry, *this, cmd.blueprint_id, cmd.target_pos);
             if (destroyed() || !in_registry()) {
@@ -1234,10 +1283,6 @@ OrderStep Unit::order_build_mobile(UnitCommand& cmd, f64 dt, SimContext& ctx, f3
             command_queue_.pop_front();
             call_lua_method(L, "OnFailedToBuild");
             return destroyed() || !in_registry() ? OrderStep::Gone : OrderStep::Next;
-        }
-        if (build_blocked_by_lobby_rules(*this, cmd, ctx)) {
-            command_queue_.pop_front();
-            return OrderStep::Next;
         }
         if (!find_build_site_frame(registry, cmd.blueprint_id, cmd.target_pos)) {
             if (build_site_taken(L, registry, cmd.blueprint_id, cmd.target_pos)) {
